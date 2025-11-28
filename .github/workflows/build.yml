@@ -92,7 +92,7 @@ jobs:
           S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/macos-intel/${{ env.APP_NAME }}-macOS-Intel.zip"
           echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
 
-  # ==================== macOS Apple Silicon BUILD ====================
+  # ==================== macOS Apple Silicon BUILD (FIXED) ====================
   build-macos-arm:
     name: 🍎 Build macOS (Apple Silicon)
     runs-on: macos-latest
@@ -152,7 +152,7 @@ jobs:
           path: dist-macos-arm/${{ env.APP_NAME }}-macOS-AppleSilicon.zip
 
       - name: 🔐 Configure AWS Credentials
-        uses: actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
