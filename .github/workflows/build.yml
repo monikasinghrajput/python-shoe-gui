@@ -421,14 +421,21 @@ jobs:
           $S3_PATH = "s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/windows/${TIMESTAMP}/"
           aws s3 cp "dist/${{ env.APP_NAME }}-Windows.zip" $S3_PATH
 
-  # ==================== EMAIL NOTIFICATION (OREGON SES FIXED) ====================
+  # ==================== SNS EMAIL NOTIFICATION ====================
   notify:
-    name: 📧 Send Build Notification Email
+    name: 📧 Send Build Notification via SNS
     needs: [build-macos-intel, build-macos-arm, build-linux-22, build-linux-24, build-windows]
     runs-on: ubuntu-latest
     if: always()
 
     steps:
+      - name: 🔐 Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
       - name: 📝 Check Build Status
         id: status
         run: |
@@ -444,15 +451,14 @@ jobs:
             echo "emoji=⚠️" >> $GITHUB_OUTPUT
           fi
 
-      - name: 📝 Build Email Content
+      - name: 📧 Send Email via AWS SNS
         run: |
           TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S UTC")
           BUILD_DATE=$(date +%Y%m%d-%H%M%S)
           STATUS="${{ steps.status.outputs.status }}"
           EMOJI="${{ steps.status.outputs.emoji }}"
           
-          cat > email.txt << EOF
-          Hello Wildace Team,
+          MESSAGE="Hello Wildace Team,
 
           A new multi-platform build has been completed.
 
@@ -493,26 +499,27 @@ jobs:
           ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
           Regards,
-          Wildace Automated Build System
-          EOF
+          Wildace Automated Build System"
 
-      - name: 📧 Send Email via AWS SES (Oregon)
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: email-smtp.us-west-2.amazonaws.com
-          server_port: 587
-          secure: tls
-          username: AKIAXZEFH4X3MEKV3BMK
-          password: BNyvRCI7A8tJcfdj1wW1hm72dYvCUGJJvNm629d7WklY
-          subject: "${{ steps.status.outputs.emoji }} Build ${{ steps.status.outputs.status }} - ${{ env.APP_NAME }}"
-          to: monika@wildace.in
-          from: monika@wildace.in
-          body: file://email.txt
+          # Create SNS topic (idempotent - safe to run multiple times)
+          TOPIC_ARN=$(aws sns create-topic --name wildace-build-notifications --region us-west-2 --query 'TopicArn' --output text)
+          
+          echo "📧 SNS Topic ARN: ${TOPIC_ARN}"
+          
+          # Subscribe email (will be ignored if already subscribed)
+          aws sns subscribe \
+            --topic-arn "${TOPIC_ARN}" \
+            --protocol email \
+            --notification-endpoint monika@wildace.in \
+            --region us-west-2 2>/dev/null || echo "⚠️ Subscription already exists or pending confirmation"
+          
+          # Send notification
+          aws sns publish \
+            --topic-arn "${TOPIC_ARN}" \
+            --subject "${EMOJI} Build ${STATUS} - ${{ env.APP_NAME }}" \
+            --message "${MESSAGE}" \
+            --region us-west-2
 
-      - name: 📧 Fallback - Print Email if Failed
-        if: failure()
-        run: |
-          echo "========================================"
-          echo "❌ EMAIL SEND FAILED"
-          echo "========================================"
-          cat email.txt
+          echo "✅ Email sent successfully via SNS!"
+          echo "📧 Check monika@wildace.in inbox"
+          echo "⚠️  First time? You'll receive a CONFIRMATION EMAIL - click 'Confirm subscription' link!"
