@@ -421,7 +421,7 @@ jobs:
           $S3_PATH = "s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/windows/${TIMESTAMP}/"
           aws s3 cp "dist/${{ env.APP_NAME }}-Windows.zip" $S3_PATH
 
-  # ==================== EMAIL NOTIFICATION (COMPLETELY FIXED) ====================
+  # ==================== EMAIL NOTIFICATION (OREGON SES FIXED) ====================
   notify:
     name: 📧 Send Build Notification Email
     needs: [build-macos-intel, build-macos-arm, build-linux-22, build-linux-24, build-windows]
@@ -451,7 +451,7 @@ jobs:
           STATUS="${{ steps.status.outputs.status }}"
           EMOJI="${{ steps.status.outputs.emoji }}"
           
-          cat <<'EOF' > email.txt
+          cat > email.txt << EOF
           Hello Wildace Team,
 
           A new multi-platform build has been completed.
@@ -496,14 +496,14 @@ jobs:
           Wildace Automated Build System
           EOF
 
-      - name: 📧 Send Email via AWS SES
+      - name: 📧 Send Email via AWS SES (Oregon)
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: ${{ secrets.SES_HOST }}
-          server_port: ${{ secrets.SES_PORT }}
+          server_address: email-smtp.us-west-2.amazonaws.com
+          server_port: 587
           secure: tls
-          username: ${{ secrets.SES_USER }}
-          password: ${{ secrets.SES_PASS }}
+          username: AKIAXZEFH4X3MEKV3BMK
+          password: BNyvRCI7A8tJcfdj1wW1hm72dYvCUGJJvNm629d7WklY
           subject: "${{ steps.status.outputs.emoji }} Build ${{ steps.status.outputs.status }} - ${{ env.APP_NAME }}"
           to: monika@wildace.in
           from: monika@wildace.in
@@ -512,7 +512,7 @@ jobs:
       - name: 📧 Fallback - Print Email if Failed
         if: failure()
         run: |
-          echo "========================================" 
+          echo "========================================"
           echo "❌ EMAIL SEND FAILED"
           echo "========================================"
           cat email.txt
