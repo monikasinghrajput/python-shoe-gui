@@ -283,15 +283,17 @@ jobs:
           S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/linux/ubuntu-24.04/${TIMESTAMP}"
           aws s3 cp "dist-linux-24/${{ env.APP_NAME }}-ubuntu24.04" "${S3_PATH}/"
 
-  # ==================== Windows BUILD ====================
+  # ==================== Windows BUILD (FIXED) ====================
   build-windows:
     name: 🪟 Windows Build
     runs-on: windows-latest
+    timeout-minutes: 30
 
     env:
       KIVY_GL_BACKEND: angle_sdl2
       KIVY_WINDOW: sdl2
       KIVY_NO_ARGS: "1"
+      KIVY_NO_CONSOLELOG: "1"
 
     steps:
       - name: 📥 Checkout code
@@ -302,45 +304,102 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
+        shell: pwsh
         run: |
           python -m venv venv
           .\venv\Scripts\Activate.ps1
-          pip install --upgrade pip wheel setuptools
+          python -m pip install --upgrade pip wheel setuptools
+          pip install kivy[base]==2.3.0 kivy_deps.sdl2==0.7.0 kivy_deps.glew==0.3.1 kivy_deps.angle==0.4.0
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Create Kivy config to prevent GL initialization
+      - name: 🔧 Create PyInstaller spec file
+        shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.kivy"
-          @"
-          [kivy]
-          log_level = error
-          
-          [graphics]
-          multisamples = 0
-          
-          [input]
-          mouse = mouse
-          
-          [modules]
-          "@ | Out-File -FilePath "$env:USERPROFILE\.kivy\config.ini" -Encoding ASCII
+          $specContent = @"
+          # -*- mode: python ; coding: utf-8 -*-
+          import os
+          from kivy_deps import sdl2, glew, angle
 
-      - name: Build EXE with PyInstaller
+          block_cipher = None
+
+          a = Analysis(
+              ['main.py'],
+              pathex=[],
+              binaries=[],
+              datas=[('bee.png', '.')],
+              hiddenimports=[
+                  'kivy.core.window.window_sdl2',
+                  'kivy.core.image.img_sdl2',
+                  'kivy.core.audio.audio_sdl2',
+                  'kivy.graphics.opengl',
+                  'kivy.graphics.opengl_utils',
+              ],
+              hookspath=[],
+              hooksconfig={},
+              runtime_hooks=[],
+              excludes=['kivy.core.camera', 'kivy.core.spelling', 'kivy.core.video'],
+              win_no_prefer_redirects=False,
+              win_private_assemblies=False,
+              cipher=block_cipher,
+              noarchive=False,
+          )
+
+          pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+          exe = EXE(
+              pyz,
+              a.scripts,
+              [],
+              exclude_binaries=True,
+              name='${{ env.APP_NAME }}',
+              debug=False,
+              bootloader_ignore_signals=False,
+              strip=False,
+              upx=True,
+              console=False,
+              disable_windowed_traceback=False,
+              target_arch=None,
+              codesign_identity=None,
+              entitlements_file=None,
+              icon='wildace.jpeg',
+          )
+
+          coll = COLLECT(
+              exe,
+              a.binaries,
+              a.zipfiles,
+              a.datas,
+              *[Tree(p) for p in (sdl2.dep_bins + glew.dep_bins + angle.dep_bins)],
+              strip=False,
+              upx=True,
+              upx_exclude=[],
+              name='${{ env.APP_NAME }}',
+          )
+          "@
+
+          $specContent | Out-File -FilePath "${{ env.APP_NAME }}.spec" -Encoding UTF8
+
+      - name: 🔨 Build Windows EXE
+        shell: pwsh
         run: |
           .\venv\Scripts\Activate.ps1
-          pyinstaller --windowed --onedir --name="${{ env.APP_NAME }}" --add-data "bee.png;." --icon wildace.jpeg main.py --noconfirm --clean
-
-      - name: List dist directory
-        run: |
-          Write-Host "Listing dist directory:"
-          Get-ChildItem -Path dist -Recurse
+          pyinstaller "${{ env.APP_NAME }}.spec" --noconfirm --clean
 
       - name: 📦 Create ZIP archive
+        shell: pwsh
         run: |
           $AppFolder = "dist\${{ env.APP_NAME }}"
           $ZipFile = "dist\${{ env.APP_NAME }}-Windows.zip"
-          Compress-Archive -Path $AppFolder -DestinationPath $ZipFile
+          
+          if (Test-Path $AppFolder) {
+            Compress-Archive -Path $AppFolder -DestinationPath $ZipFile -Force
+            Write-Host "✅ ZIP created successfully"
+          } else {
+            Write-Error "❌ Build folder not found: $AppFolder"
+            exit 1
+          }
 
       - name: 📤 Upload build artifact
         uses: actions/upload-artifact@v4
@@ -356,6 +415,7 @@ jobs:
           aws-region: ap-south-1
 
       - name: ☁️ Upload ZIP to S3
+        shell: pwsh
         run: |
           $TIMESTAMP = Get-Date -Format "yyyyMMdd-HHmmss"
           $S3_PATH = "s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/windows/${TIMESTAMP}/"
@@ -369,20 +429,46 @@ jobs:
     if: always()
 
     steps:
+      - name: 📝 Check Build Status
+        id: status
+        run: |
+          if [ "${{ needs.build-macos-intel.result }}" == "success" ] && \
+             [ "${{ needs.build-macos-arm.result }}" == "success" ] && \
+             [ "${{ needs.build-linux-22.result }}" == "success" ] && \
+             [ "${{ needs.build-linux-24.result }}" == "success" ] && \
+             [ "${{ needs.build-windows.result }}" == "success" ]; then
+            echo "status=✅ SUCCESS" >> $GITHUB_OUTPUT
+          else
+            echo "status=⚠️ PARTIAL SUCCESS" >> $GITHUB_OUTPUT
+          fi
+
       - name: 📝 Build Email Content
         id: email
         run: |
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          echo "SUBJECT=New Build Completed - ${{ env.APP_NAME }} ($TIMESTAMP)" >> $GITHUB_ENV
+          STATUS="${{ steps.status.outputs.status }}"
+          echo "SUBJECT=Build Completed - ${{ env.APP_NAME }} - ${STATUS}" >> $GITHUB_ENV
 
           cat <<EOF > email.txt
           Hello Wildace Team,
 
-          A new full multi-platform build has been successfully completed.
+          A new multi-platform build has been completed.
 
           ==============================
           🚀 APPLICATION: ${{ env.APP_NAME }}
           📌 VERSION: $TIMESTAMP
+          📊 STATUS: ${STATUS}
+          ==============================
+
+          BUILD RESULTS:
+          📦 macOS (Intel): ${{ needs.build-macos-intel.result }}
+          🍎 macOS (Apple Silicon): ${{ needs.build-macos-arm.result }}
+          🐧 Linux Ubuntu 22.04: ${{ needs.build-linux-22.result }}
+          🐧 Linux Ubuntu 24.04: ${{ needs.build-linux-24.result }}
+          🪟 Windows: ${{ needs.build-windows.result }}
+
+          ==============================
+          DOWNLOAD LINKS:
           ==============================
 
           📦 macOS (Intel)
@@ -401,9 +487,8 @@ jobs:
           https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/windows/${TIMESTAMP}/${{ env.APP_NAME }}-Windows.zip
 
           ==============================
-          ✔ All builds uploaded to S3
-          ✔ Artifacts stored in GitHub
-          ==============================
+          🔗 GitHub Actions Run:
+          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
           Regards,  
           Wildace Automated Build System
