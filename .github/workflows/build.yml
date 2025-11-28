@@ -14,6 +14,7 @@ env:
   PYTHON_VERSION: '3.11'
   S3_BUCKET: only-unity-build
   S3_BASE_PATH: shoe-monitor-builds
+  BUILD_TIMESTAMP: ${{ github.run_id }}-${{ github.run_number }}
 
 jobs:
 
@@ -21,6 +22,8 @@ jobs:
   build-macos-intel:
     name: 🍎 Build macOS (Intel)
     runs-on: macos-13
+    outputs:
+      s3_url: ${{ steps.upload.outputs.s3_url }}
 
     steps:
       - name: 📥 Checkout code
@@ -82,15 +85,19 @@ jobs:
           aws-region: ap-south-1
 
       - name: ☁️ Upload to S3
+        id: upload
         run: |
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/macos/intel/${TIMESTAMP}"
-          aws s3 cp "dist-macos-intel/${{ env.APP_NAME }}-macOS-Intel.zip" "${S3_PATH}/"
+          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/macos-intel"
+          aws s3 cp "dist-macos-intel/${{ env.APP_NAME }}-macOS-Intel.zip" "${S3_PATH}/${{ env.APP_NAME }}-macOS-Intel.zip"
+          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/macos-intel/${{ env.APP_NAME }}-macOS-Intel.zip"
+          echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
 
   # ==================== macOS Apple Silicon BUILD ====================
   build-macos-arm:
     name: 🍎 Build macOS (Apple Silicon)
     runs-on: macos-latest
+    outputs:
+      s3_url: ${{ steps.upload.outputs.s3_url }}
 
     steps:
       - name: 📥 Checkout code
@@ -152,15 +159,19 @@ jobs:
           aws-region: ap-south-1
 
       - name: ☁️ Upload to S3
+        id: upload
         run: |
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/macos/arm/${TIMESTAMP}"
-          aws s3 cp "dist-macos-arm/${{ env.APP_NAME }}-macOS-AppleSilicon.zip" "${S3_PATH}/"
+          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/macos-arm"
+          aws s3 cp "dist-macos-arm/${{ env.APP_NAME }}-macOS-AppleSilicon.zip" "${S3_PATH}/${{ env.APP_NAME }}-macOS-AppleSilicon.zip"
+          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/macos-arm/${{ env.APP_NAME }}-macOS-AppleSilicon.zip"
+          echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
 
   # ==================== Linux Ubuntu 22.04 BUILD ====================
   build-linux-22:
     name: 🐧 Build Linux (Ubuntu 22.04)
     runs-on: ubuntu-22.04
+    outputs:
+      s3_url: ${{ steps.upload.outputs.s3_url }}
 
     steps:
       - name: 📥 Checkout code
@@ -215,15 +226,19 @@ jobs:
           aws-region: ap-south-1
 
       - name: ☁️ Upload to S3
+        id: upload
         run: |
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/linux/ubuntu-22.04/${TIMESTAMP}"
-          aws s3 cp "dist-linux-22/${{ env.APP_NAME }}-ubuntu22.04" "${S3_PATH}/"
+          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/linux-ubuntu22"
+          aws s3 cp "dist-linux-22/${{ env.APP_NAME }}-ubuntu22.04" "${S3_PATH}/${{ env.APP_NAME }}-ubuntu22.04"
+          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/linux-ubuntu22/${{ env.APP_NAME }}-ubuntu22.04"
+          echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
 
   # ==================== Linux Ubuntu 24.04 BUILD ====================
   build-linux-24:
     name: 🐧 Build Linux (Ubuntu 24.04)
     runs-on: ubuntu-24.04
+    outputs:
+      s3_url: ${{ steps.upload.outputs.s3_url }}
 
     steps:
       - name: 📥 Checkout code
@@ -278,16 +293,20 @@ jobs:
           aws-region: ap-south-1
 
       - name: ☁️ Upload to S3
+        id: upload
         run: |
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/linux/ubuntu-24.04/${TIMESTAMP}"
-          aws s3 cp "dist-linux-24/${{ env.APP_NAME }}-ubuntu24.04" "${S3_PATH}/"
+          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/linux-ubuntu24"
+          aws s3 cp "dist-linux-24/${{ env.APP_NAME }}-ubuntu24.04" "${S3_PATH}/${{ env.APP_NAME }}-ubuntu24.04"
+          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/linux-ubuntu24/${{ env.APP_NAME }}-ubuntu24.04"
+          echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
 
   # ==================== Windows BUILD ====================
   build-windows:
     name: 🪟 Windows Build
     runs-on: windows-latest
     timeout-minutes: 30
+    outputs:
+      s3_url: ${{ steps.upload.outputs.s3_url }}
 
     env:
       KIVY_GL_BACKEND: angle_sdl2
@@ -415,13 +434,15 @@ jobs:
           aws-region: ap-south-1
 
       - name: ☁️ Upload ZIP to S3
+        id: upload
         shell: pwsh
         run: |
-          $TIMESTAMP = Get-Date -Format "yyyyMMdd-HHmmss"
-          $S3_PATH = "s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/windows/${TIMESTAMP}/"
-          aws s3 cp "dist/${{ env.APP_NAME }}-Windows.zip" $S3_PATH
+          $S3_PATH = "s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/windows"
+          aws s3 cp "dist/${{ env.APP_NAME }}-Windows.zip" "${S3_PATH}/${{ env.APP_NAME }}-Windows.zip"
+          $S3_URL = "https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/windows/${{ env.APP_NAME }}-Windows.zip"
+          echo "s3_url=${S3_URL}" >> $env:GITHUB_OUTPUT
 
-  # ==================== SNS EMAIL NOTIFICATION ====================
+  # ==================== EMAIL NOTIFICATION ====================
   notify:
     name: 📧 Send Build Notification via SNS
     needs: [build-macos-intel, build-macos-arm, build-linux-22, build-linux-24, build-windows]
@@ -451,75 +472,80 @@ jobs:
             echo "emoji=⚠️" >> $GITHUB_OUTPUT
           fi
 
-      - name: 📧 Send Email via AWS SNS
+      - name: 📧 Send Beautiful Email via AWS SNS
         run: |
           TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S UTC")
-          BUILD_DATE=$(date +%Y%m%d-%H%M%S)
+          BUILD_VERSION="v${{ env.BUILD_TIMESTAMP }}"
           STATUS="${{ steps.status.outputs.status }}"
           EMOJI="${{ steps.status.outputs.emoji }}"
           
-          MESSAGE="Hello Wildace Team,
+          MESSAGE="╔════════════════════════════════════════════════════╗
+║         🚀 BUILD NOTIFICATION - ${{ env.APP_NAME }}         ║
+╚════════════════════════════════════════════════════╝
 
-          A new multi-platform build has been completed.
+📦 BUILD VERSION: ${BUILD_VERSION}
+📅 TIMESTAMP: ${TIMESTAMP}
+📊 STATUS: ${EMOJI} ${STATUS}
 
-          ==============================
-          🚀 APPLICATION: ${{ env.APP_NAME }}
-          📌 TIMESTAMP: ${TIMESTAMP}
-          📊 STATUS: ${EMOJI} ${STATUS}
-          ==============================
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 BUILD RESULTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-          BUILD RESULTS:
-          📦 macOS (Intel): ${{ needs.build-macos-intel.result }}
-          🍎 macOS (Apple Silicon): ${{ needs.build-macos-arm.result }}
-          🐧 Linux Ubuntu 22.04: ${{ needs.build-linux-22.result }}
-          🐧 Linux Ubuntu 24.04: ${{ needs.build-linux-24.result }}
-          🪟 Windows: ${{ needs.build-windows.result }}
+🍎 macOS Intel:        ${{ needs.build-macos-intel.result }}
+🍏 macOS Apple Silicon: ${{ needs.build-macos-arm.result }}
+🐧 Linux Ubuntu 22.04:  ${{ needs.build-linux-22.result }}
+🐧 Linux Ubuntu 24.04:  ${{ needs.build-linux-24.result }}
+🪟 Windows:            ${{ needs.build-windows.result }}
 
-          ==============================
-          DOWNLOAD LINKS:
-          ==============================
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📥 DOWNLOAD LINKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-          📦 macOS Intel:
-          https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/macos/intel/${BUILD_DATE}/${{ env.APP_NAME }}-macOS-Intel.zip
+🍎 macOS Intel:
+${{ needs.build-macos-intel.outputs.s3_url }}
 
-          🍎 macOS Apple Silicon:
-          https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/macos/arm/${BUILD_DATE}/${{ env.APP_NAME }}-macOS-AppleSilicon.zip
+🍏 macOS Apple Silicon:
+${{ needs.build-macos-arm.outputs.s3_url }}
 
-          🐧 Linux Ubuntu 22.04:
-          https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/linux/ubuntu-22.04/${BUILD_DATE}/${{ env.APP_NAME }}-ubuntu22.04
+🐧 Linux Ubuntu 22.04:
+${{ needs.build-linux-22.outputs.s3_url }}
 
-          🐧 Linux Ubuntu 24.04:
-          https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/linux/ubuntu-24.04/${BUILD_DATE}/${{ env.APP_NAME }}-ubuntu24.04
+🐧 Linux Ubuntu 24.04:
+${{ needs.build-linux-24.outputs.s3_url }}
 
-          🪟 Windows:
-          https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/windows/${BUILD_DATE}/${{ env.APP_NAME }}-Windows.zip
+🪟 Windows:
+${{ needs.build-windows.outputs.s3_url }}
 
-          ==============================
-          🔗 GitHub Actions:
-          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔗 ADDITIONAL INFO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-          Regards,
-          Wildace Automated Build System"
+GitHub Actions Run:
+${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-          # Create SNS topic (idempotent - safe to run multiple times)
+Repository:
+${{ github.server_url }}/${{ github.repository }}
+
+Commit: ${{ github.sha }}
+Branch: ${{ github.ref_name }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Best Regards,
+Wildace Automated Build System 🤖"
+
           TOPIC_ARN=$(aws sns create-topic --name wildace-build-notifications --region us-west-2 --query 'TopicArn' --output text)
           
-          echo "📧 SNS Topic ARN: ${TOPIC_ARN}"
-          
-          # Subscribe email (will be ignored if already subscribed)
           aws sns subscribe \
             --topic-arn "${TOPIC_ARN}" \
             --protocol email \
             --notification-endpoint monika@wildace.in \
-            --region us-west-2 2>/dev/null || echo "⚠️ Subscription already exists or pending confirmation"
+            --region us-west-2 2>/dev/null || true
           
-          # Send notification
           aws sns publish \
             --topic-arn "${TOPIC_ARN}" \
-            --subject "${EMOJI} Build ${STATUS} - ${{ env.APP_NAME }}" \
+            --subject "${EMOJI} ${STATUS} - ${{ env.APP_NAME }} ${BUILD_VERSION}" \
             --message "${MESSAGE}" \
             --region us-west-2
 
-          echo "✅ Email sent successfully via SNS!"
-          echo "📧 Check monika@wildace.in inbox"
-          echo "⚠️  First time? You'll receive a CONFIRMATION EMAIL - click 'Confirm subscription' link!"
+          echo "✅ Email sent successfully!"
