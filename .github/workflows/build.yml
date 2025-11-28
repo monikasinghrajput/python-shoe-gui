@@ -1,20 +1,517 @@
-Build Notification - BeetekShoeMonitor
+name: 🚀 Build Multi-Platform & Upload to S3 with notification
 
-Version: v1.0.0
-Timestamp: 2025-11-28 18:00:00
-Status: SUCCESS
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  release:
+    types: [created]
+  workflow_dispatch:
 
-Download Links:
+env:
+  APP_NAME: BeetekShoeMonitor
+  APP_VERSION: '1.0.0'
+  PYTHON_VERSION: '3.11'
+  S3_BUCKET: only-unity-build
+  S3_BASE_PATH: shoe-monitor-builds
 
-macOS Intel: https://s3.ap-south-1.amazonaws.com/only-unity-build/shoe-monitor-builds/v1.0.0/macos-intel/BeetekShoeMonitor-macOS-Intel.zip
+jobs:
 
-macOS Apple Silicon: https://s3.ap-south-1.amazonaws.com/only-unity-build/shoe-monitor-builds/v1.0.0/macos-arm/BeetekShoeMonitor-macOS-AppleSilicon.zip
+  # ==================== macOS Intel BUILD ====================
+  build-macos-intel:
+    name: 🍎 Build macOS (Intel)
+    runs-on: macos-13
+    outputs:
+      s3_url: ${{ steps.upload.outputs.s3_url }}
 
-Linux Ubuntu 22.04: https://s3.ap-south-1.amazonaws.com/only-unity-build/shoe-monitor-builds/v1.0.0/linux-ubuntu22/BeetekShoeMonitor-ubuntu22.04
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
 
-Linux Ubuntu 24.04: https://s3.ap-south-1.amazonaws.com/only-unity-build/shoe-monitor-builds/v1.0.0/linux-ubuntu24/BeetekShoeMonitor-ubuntu24.04
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
-Windows: https://s3.ap-south-1.amazonaws.com/only-unity-build/shoe-monitor-builds/v1.0.0/windows/BeetekShoeMonitor-Windows.zip
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          brew install sdl2 sdl2_image sdl2_ttf sdl2_mixer
+          pip install "kivy[base]==2.3.0"
+          pip install -r requirements.txt
+          pip install pyinstaller
 
----
-Wildace Automated Build System
+      - name: 🔨 Build macOS .app (Intel)
+        run: |
+          mkdir -p hooks
+          cat > hooks/hook-exclude-windows.py << 'EOF'
+          excludedimports = ['kivy_deps', 'kivy_deps.sdl2', 'kivy_deps.glew', 'kivy_deps.angle']
+          EOF
+
+          pyinstaller \
+            --windowed \
+            --onedir \
+            --name=${{ env.APP_NAME }} \
+            --icon=wildace.jpeg \
+            --add-data="bee.png:." \
+            --osx-bundle-identifier=com.wildace.beetekmonitor \
+            --additional-hooks-dir=hooks \
+            --exclude-module=kivy_deps \
+            --target-arch=x86_64 \
+            --noconfirm \
+            --clean \
+            main.py
+
+          chmod -R 755 "dist/${{ env.APP_NAME }}.app"
+          xattr -cr "dist/${{ env.APP_NAME }}.app"
+          codesign --force --deep --sign - "dist/${{ env.APP_NAME }}.app"
+
+          mkdir -p dist-macos-intel
+          cd dist
+          zip -r -y "../dist-macos-intel/${{ env.APP_NAME }}-macOS-Intel.zip" "${{ env.APP_NAME }}.app"
+
+      - name: 📤 Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-intel-build
+          path: dist-macos-intel/${{ env.APP_NAME }}-macOS-Intel.zip
+
+      - name: 🔐 Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: ☁️ Upload to S3
+        id: upload
+        run: |
+          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/macos-intel"
+          aws s3 cp "dist-macos-intel/${{ env.APP_NAME }}-macOS-Intel.zip" "${S3_PATH}/${{ env.APP_NAME }}-macOS-Intel.zip"
+          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/macos-intel/${{ env.APP_NAME }}-macOS-Intel.zip"
+          echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
+
+  # ==================== macOS Apple Silicon BUILD ====================
+  build-macos-arm:
+    name: 🍎 Build macOS (Apple Silicon)
+    runs-on: macos-latest
+    outputs:
+      s3_url: ${{ steps.upload.outputs.s3_url }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          brew install sdl2 sdl2_image sdl2_ttf sdl2_mixer
+          pip install "kivy[base]==2.3.0"
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: 🔨 Build macOS .app (ARM)
+        run: |
+          mkdir -p hooks
+          cat > hooks/hook-exclude-windows.py << 'EOF'
+          excludedimports = ['kivy_deps']
+          EOF
+
+          pyinstaller \
+            --windowed \
+            --onedir \
+            --name=${{ env.APP_NAME }} \
+            --icon=wildace.jpeg \
+            --add-data="bee.png:." \
+            --osx-bundle-identifier=com.wildace.beetekmonitor \
+            --additional-hooks-dir=hooks \
+            --exclude-module=kivy_deps \
+            --target-arch=arm64 \
+            --noconfirm \
+            --clean \
+            main.py
+
+          chmod -R 755 "dist/${{ env.APP_NAME }}.app"
+          xattr -cr "dist/${{ env.APP_NAME }}.app"
+          codesign --force --deep --sign - "dist/${{ env.APP_NAME }}.app"
+
+          mkdir -p dist-macos-arm
+          cd dist
+          zip -r -y "../dist-macos-arm/${{ env.APP_NAME }}-macOS-AppleSilicon.zip" "${{ env.APP_NAME }}.app"
+
+      - name: 📤 Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm-build
+          path: dist-macos-arm/${{ env.APP_NAME }}-macOS-AppleSilicon.zip
+
+      - name: 🔐 Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: ☁️ Upload to S3
+        id: upload
+        run: |
+          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/macos-arm"
+          aws s3 cp "dist-macos-arm/${{ env.APP_NAME }}-macOS-AppleSilicon.zip" "${S3_PATH}/${{ env.APP_NAME }}-macOS-AppleSilicon.zip"
+          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/macos-arm/${{ env.APP_NAME }}-macOS-AppleSilicon.zip"
+          echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
+
+  # ==================== Linux Ubuntu 22.04 BUILD ====================
+  build-linux-22:
+    name: 🐧 Build Linux (Ubuntu 22.04)
+    runs-on: ubuntu-22.04
+    outputs:
+      s3_url: ${{ steps.upload.outputs.s3_url }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-dev libsdl2-dev libsdl2-image-dev \
+            libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev \
+            libswscale-dev libavformat-dev libavcodec-dev \
+            zlib1g-dev fuse libfuse2 imagemagick
+
+      - name: 📦 Install Python deps
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install "kivy[base]==2.3.0"
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: 🔨 Build Linux Binary
+        run: |
+          pyinstaller \
+            --onefile \
+            --windowed \
+            --icon=wildace.jpeg \
+            --add-data="bee.png:." \
+            --name=${{ env.APP_NAME }} \
+            main.py
+
+          mkdir -p dist-linux-22
+          chmod +x dist/${{ env.APP_NAME }}
+          mv dist/${{ env.APP_NAME }} dist-linux-22/${{ env.APP_NAME }}-ubuntu22.04
+
+      - name: 📤 Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-22-build
+          path: dist-linux-22/${{ env.APP_NAME }}-ubuntu22.04
+
+      - name: 🔐 Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: ☁️ Upload to S3
+        id: upload
+        run: |
+          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/linux-ubuntu22"
+          aws s3 cp "dist-linux-22/${{ env.APP_NAME }}-ubuntu22.04" "${S3_PATH}/${{ env.APP_NAME }}-ubuntu22.04"
+          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/linux-ubuntu22/${{ env.APP_NAME }}-ubuntu22.04"
+          echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
+
+  # ==================== Linux Ubuntu 24.04 BUILD ====================
+  build-linux-24:
+    name: 🐧 Build Linux (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    outputs:
+      s3_url: ${{ steps.upload.outputs.s3_url }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-dev libsdl2-dev libsdl2-image-dev \
+            libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev \
+            libswscale-dev libavformat-dev libavcodec-dev \
+            zlib1g-dev libfuse2t64 imagemagick
+
+      - name: 📦 Install Python deps
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install "kivy[base]==2.3.0"
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: 🔨 Build Linux Binary
+        run: |
+          pyinstaller \
+            --onefile \
+            --windowed \
+            --icon=wildace.jpeg \
+            --add-data="bee.png:." \
+            --name=${{ env.APP_NAME }} \
+            main.py
+
+          mkdir -p dist-linux-24
+          chmod +x dist/${{ env.APP_NAME }}
+          mv dist/${{ env.APP_NAME }} dist-linux-24/${{ env.APP_NAME }}-ubuntu24.04
+
+      - name: 📤 Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-24-build
+          path: dist-linux-24/${{ env.APP_NAME }}-ubuntu24.04
+
+      - name: 🔐 Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: ☁️ Upload to S3
+        id: upload
+        run: |
+          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/linux-ubuntu24"
+          aws s3 cp "dist-linux-24/${{ env.APP_NAME }}-ubuntu24.04" "${S3_PATH}/${{ env.APP_NAME }}-ubuntu24.04"
+          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/linux-ubuntu24/${{ env.APP_NAME }}-ubuntu24.04"
+          echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
+
+  # ==================== Windows BUILD ====================
+  build-windows:
+    name: 🪟 Windows Build
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      s3_url: ${{ steps.upload.outputs.s3_url }}
+
+    env:
+      KIVY_GL_BACKEND: angle_sdl2
+      KIVY_WINDOW: sdl2
+      KIVY_NO_ARGS: "1"
+      KIVY_NO_CONSOLELOG: "1"
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 📦 Install dependencies
+        shell: pwsh
+        run: |
+          python -m venv venv
+          .\venv\Scripts\Activate.ps1
+          python -m pip install --upgrade pip wheel setuptools
+          pip install kivy[base]==2.3.0 kivy_deps.sdl2==0.7.0 kivy_deps.glew==0.3.1 kivy_deps.angle==0.4.0
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: 🔧 Create PyInstaller spec file
+        shell: pwsh
+        run: |
+          $specContent = @"
+          # -*- mode: python ; coding: utf-8 -*-
+          import os
+          from kivy_deps import sdl2, glew, angle
+
+          block_cipher = None
+
+          a = Analysis(
+              ['main.py'],
+              pathex=[],
+              binaries=[],
+              datas=[('bee.png', '.')],
+              hiddenimports=[
+                  'kivy.core.window.window_sdl2',
+                  'kivy.core.image.img_sdl2',
+                  'kivy.core.audio.audio_sdl2',
+                  'kivy.graphics.opengl',
+                  'kivy.graphics.opengl_utils',
+              ],
+              hookspath=[],
+              hooksconfig={},
+              runtime_hooks=[],
+              excludes=['kivy.core.camera', 'kivy.core.spelling', 'kivy.core.video'],
+              win_no_prefer_redirects=False,
+              win_private_assemblies=False,
+              cipher=block_cipher,
+              noarchive=False,
+          )
+
+          pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+          exe = EXE(
+              pyz,
+              a.scripts,
+              [],
+              exclude_binaries=True,
+              name='${{ env.APP_NAME }}',
+              debug=False,
+              bootloader_ignore_signals=False,
+              strip=False,
+              upx=True,
+              console=False,
+              disable_windowed_traceback=False,
+              target_arch=None,
+              codesign_identity=None,
+              entitlements_file=None,
+              icon='wildace.jpeg',
+          )
+
+          coll = COLLECT(
+              exe,
+              a.binaries,
+              a.zipfiles,
+              a.datas,
+              *[Tree(p) for p in (sdl2.dep_bins + glew.dep_bins + angle.dep_bins)],
+              strip=False,
+              upx=True,
+              upx_exclude=[],
+              name='${{ env.APP_NAME }}',
+          )
+          "@
+
+          $specContent | Out-File -FilePath "${{ env.APP_NAME }}.spec" -Encoding UTF8
+
+      - name: 🔨 Build Windows EXE
+        shell: pwsh
+        run: |
+          .\venv\Scripts\Activate.ps1
+          pyinstaller "${{ env.APP_NAME }}.spec" --noconfirm --clean
+
+      - name: 📦 Create ZIP archive
+        shell: pwsh
+        run: |
+          $AppFolder = "dist\${{ env.APP_NAME }}"
+          $ZipFile = "dist\${{ env.APP_NAME }}-Windows.zip"
+          
+          if (Test-Path $AppFolder) {
+            Compress-Archive -Path $AppFolder -DestinationPath $ZipFile -Force
+            Write-Host "✅ ZIP created successfully"
+          } else {
+            Write-Error "❌ Build folder not found: $AppFolder"
+            exit 1
+          }
+
+      - name: 📤 Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: dist/${{ env.APP_NAME }}-Windows.zip
+
+      - name: 🔐 Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: ☁️ Upload ZIP to S3
+        id: upload
+        shell: pwsh
+        run: |
+          $S3_PATH = "s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/windows"
+          aws s3 cp "dist/${{ env.APP_NAME }}-Windows.zip" "${S3_PATH}/${{ env.APP_NAME }}-Windows.zip"
+          $S3_URL = "https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/windows/${{ env.APP_NAME }}-Windows.zip"
+          echo "s3_url=${S3_URL}" >> $env:GITHUB_OUTPUT
+
+  # ==================== SIMPLE PLAIN TEXT EMAIL ====================
+  notify:
+    name: 📧 Send Simple Email Notification
+    needs: [build-macos-intel, build-macos-arm, build-linux-22, build-linux-24, build-windows]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 🔐 Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: 📝 Check Build Status
+        id: status
+        run: |
+          if [ "${{ needs.build-macos-intel.result }}" == "success" ] && \
+             [ "${{ needs.build-macos-arm.result }}" == "success" ] && \
+             [ "${{ needs.build-linux-22.result }}" == "success" ] && \
+             [ "${{ needs.build-linux-24.result }}" == "success" ] && \
+             [ "${{ needs.build-windows.result }}" == "success" ]; then
+            echo "status=SUCCESS" >> $GITHUB_OUTPUT
+          else
+            echo "status=FAILED" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 📧 Send Simple Email
+        run: |
+          TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+          STATUS="${{ steps.status.outputs.status }}"
+          
+          cat > email.txt << EOF
+          Build Notification - ${{ env.APP_NAME }}
+
+          Version: v${{ env.APP_VERSION }}
+          Timestamp: ${TIMESTAMP}
+          Status: ${STATUS}
+
+          Download Links:
+
+          macOS Intel: ${{ needs.build-macos-intel.outputs.s3_url }}
+
+          macOS Apple Silicon: ${{ needs.build-macos-arm.outputs.s3_url }}
+
+          Linux Ubuntu 22.04: ${{ needs.build-linux-22.outputs.s3_url }}
+
+          Linux Ubuntu 24.04: ${{ needs.build-linux-24.outputs.s3_url }}
+
+          Windows: ${{ needs.build-windows.outputs.s3_url }}
+
+          ---
+          Wildace Automated Build System
+          EOF
+
+          MESSAGE=$(cat email.txt)
+
+          TOPIC_ARN=$(aws sns create-topic --name wildace-build-notifications --region us-west-2 --query 'TopicArn' --output text)
+          
+          aws sns subscribe \
+            --topic-arn "${TOPIC_ARN}" \
+            --protocol email \
+            --notification-endpoint monika@wildace.in \
+            --region us-west-2 2>/dev/null || true
+          
+          aws sns publish \
+            --topic-arn "${TOPIC_ARN}" \
+            --subject "Build ${STATUS} - ${{ env.APP_NAME }} v${{ env.APP_VERSION }}" \
+            --message "${MESSAGE}" \
+            --region us-west-2
+
+          echo "✅ Simple email sent!"
