@@ -11,10 +11,10 @@ on:
 
 env:
   APP_NAME: BeetekShoeMonitor
+  APP_VERSION: '1.0.0'
   PYTHON_VERSION: '3.11'
   S3_BUCKET: only-unity-build
   S3_BASE_PATH: shoe-monitor-builds
-  BUILD_TIMESTAMP: ${{ github.run_id }}-${{ github.run_number }}
 
 jobs:
 
@@ -87,9 +87,9 @@ jobs:
       - name: ☁️ Upload to S3
         id: upload
         run: |
-          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/macos-intel"
+          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/macos-intel"
           aws s3 cp "dist-macos-intel/${{ env.APP_NAME }}-macOS-Intel.zip" "${S3_PATH}/${{ env.APP_NAME }}-macOS-Intel.zip"
-          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/macos-intel/${{ env.APP_NAME }}-macOS-Intel.zip"
+          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/macos-intel/${{ env.APP_NAME }}-macOS-Intel.zip"
           echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
 
   # ==================== macOS Apple Silicon BUILD ====================
@@ -152,7 +152,7 @@ jobs:
           path: dist-macos-arm/${{ env.APP_NAME }}-macOS-AppleSilicon.zip
 
       - name: 🔐 Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -161,9 +161,9 @@ jobs:
       - name: ☁️ Upload to S3
         id: upload
         run: |
-          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/macos-arm"
+          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/macos-arm"
           aws s3 cp "dist-macos-arm/${{ env.APP_NAME }}-macOS-AppleSilicon.zip" "${S3_PATH}/${{ env.APP_NAME }}-macOS-AppleSilicon.zip"
-          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/macos-arm/${{ env.APP_NAME }}-macOS-AppleSilicon.zip"
+          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/macos-arm/${{ env.APP_NAME }}-macOS-AppleSilicon.zip"
           echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
 
   # ==================== Linux Ubuntu 22.04 BUILD ====================
@@ -228,9 +228,9 @@ jobs:
       - name: ☁️ Upload to S3
         id: upload
         run: |
-          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/linux-ubuntu22"
+          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/linux-ubuntu22"
           aws s3 cp "dist-linux-22/${{ env.APP_NAME }}-ubuntu22.04" "${S3_PATH}/${{ env.APP_NAME }}-ubuntu22.04"
-          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/linux-ubuntu22/${{ env.APP_NAME }}-ubuntu22.04"
+          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/linux-ubuntu22/${{ env.APP_NAME }}-ubuntu22.04"
           echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
 
   # ==================== Linux Ubuntu 24.04 BUILD ====================
@@ -295,9 +295,9 @@ jobs:
       - name: ☁️ Upload to S3
         id: upload
         run: |
-          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/linux-ubuntu24"
+          S3_PATH="s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/linux-ubuntu24"
           aws s3 cp "dist-linux-24/${{ env.APP_NAME }}-ubuntu24.04" "${S3_PATH}/${{ env.APP_NAME }}-ubuntu24.04"
-          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/linux-ubuntu24/${{ env.APP_NAME }}-ubuntu24.04"
+          S3_URL="https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/linux-ubuntu24/${{ env.APP_NAME }}-ubuntu24.04"
           echo "s3_url=${S3_URL}" >> $GITHUB_OUTPUT
 
   # ==================== Windows BUILD ====================
@@ -437,14 +437,14 @@ jobs:
         id: upload
         shell: pwsh
         run: |
-          $S3_PATH = "s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/windows"
+          $S3_PATH = "s3://${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/windows"
           aws s3 cp "dist/${{ env.APP_NAME }}-Windows.zip" "${S3_PATH}/${{ env.APP_NAME }}-Windows.zip"
-          $S3_URL = "https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.BUILD_TIMESTAMP }}/windows/${{ env.APP_NAME }}-Windows.zip"
+          $S3_URL = "https://s3.ap-south-1.amazonaws.com/${{ env.S3_BUCKET }}/${{ env.S3_BASE_PATH }}/v${{ env.APP_VERSION }}/windows/${{ env.APP_NAME }}-Windows.zip"
           echo "s3_url=${S3_URL}" >> $env:GITHUB_OUTPUT
 
-  # ==================== EMAIL NOTIFICATION ====================
+  # ==================== PROFESSIONAL HTML EMAIL ====================
   notify:
-    name: 📧 Send Build Notification via SNS
+    name: 📧 Send Professional Build Notification
     needs: [build-macos-intel, build-macos-arm, build-linux-22, build-linux-24, build-windows]
     runs-on: ubuntu-latest
     if: always()
@@ -466,83 +466,226 @@ jobs:
              [ "${{ needs.build-linux-24.result }}" == "success" ] && \
              [ "${{ needs.build-windows.result }}" == "success" ]; then
             echo "status=SUCCESS" >> $GITHUB_OUTPUT
-            echo "emoji=✅" >> $GITHUB_OUTPUT
           else
-            echo "status=PARTIAL" >> $GITHUB_OUTPUT
-            echo "emoji=⚠️" >> $GITHUB_OUTPUT
+            echo "status=FAILED" >> $GITHUB_OUTPUT
           fi
 
-      - name: 📧 Send Beautiful Email via AWS SNS
+      - name: 📧 Send Professional HTML Email
         run: |
-          TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S UTC")
-          BUILD_VERSION="v${{ env.BUILD_TIMESTAMP }}"
+          TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
           STATUS="${{ steps.status.outputs.status }}"
-          EMOJI="${{ steps.status.outputs.emoji }}"
           
-          cat > email.txt << 'EMAILEOF'
-          ════════════════════════════════════════════════════
-                  🚀 BUILD NOTIFICATION
-                  ${{ env.APP_NAME }}
-          ════════════════════════════════════════════════════
+          cat > email.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 700px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f5f5f5;
+              }
+              .container {
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                overflow: hidden;
+              }
+              .header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 30px;
+                text-align: center;
+              }
+              .header h1 {
+                margin: 0;
+                font-size: 24px;
+                font-weight: 600;
+              }
+              .content {
+                padding: 30px;
+              }
+              .info-box {
+                background: #f8f9fa;
+                border-left: 4px solid #667eea;
+                padding: 15px;
+                margin: 20px 0;
+                border-radius: 4px;
+              }
+              .info-box p {
+                margin: 8px 0;
+                font-size: 14px;
+              }
+              .info-box strong {
+                color: #495057;
+                min-width: 120px;
+                display: inline-block;
+              }
+              .builds-section {
+                margin: 30px 0;
+              }
+              .builds-section h2 {
+                color: #495057;
+                font-size: 18px;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #e9ecef;
+                padding-bottom: 10px;
+              }
+              .build-item {
+                display: flex;
+                align-items: center;
+                padding: 12px;
+                margin: 10px 0;
+                background: #f8f9fa;
+                border-radius: 6px;
+                transition: background 0.2s;
+              }
+              .build-item:hover {
+                background: #e9ecef;
+              }
+              .build-status {
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                margin-right: 15px;
+                flex-shrink: 0;
+              }
+              .status-success {
+                background: #28a745;
+                position: relative;
+              }
+              .status-success::after {
+                content: '✓';
+                color: white;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 14px;
+                font-weight: bold;
+              }
+              .status-failed {
+                background: #dc3545;
+                position: relative;
+              }
+              .status-failed::after {
+                content: '✗';
+                color: white;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 14px;
+                font-weight: bold;
+              }
+              .build-name {
+                flex: 1;
+                font-weight: 500;
+                color: #495057;
+              }
+              .download-btn {
+                background: #667eea;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 4px;
+                text-decoration: none;
+                font-size: 13px;
+                font-weight: 500;
+                transition: background 0.2s;
+              }
+              .download-btn:hover {
+                background: #5568d3;
+              }
+              .footer {
+                background: #f8f9fa;
+                padding: 20px 30px;
+                text-align: center;
+                color: #6c757d;
+                font-size: 13px;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Build Notification</h1>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">${{ env.APP_NAME }}</p>
+              </div>
+              
+              <div class="content">
+                <div class="info-box">
+                  <p><strong>Build Version:</strong> v${{ env.APP_VERSION }}</p>
+                  <p><strong>Timestamp:</strong> TIMESTAMP_PLACEHOLDER</p>
+                  <p><strong>Status:</strong> STATUS_PLACEHOLDER</p>
+                </div>
 
-          📦 BUILD VERSION: BUILD_VERSION_PLACEHOLDER
-          📅 TIMESTAMP: TIMESTAMP_PLACEHOLDER
-          📊 STATUS: EMOJI_PLACEHOLDER STATUS_PLACEHOLDER
+                <div class="builds-section">
+                  <h2>Build Results & Downloads</h2>
+                  
+                  <div class="build-item">
+                    <div class="build-status STATUS_MACOS_INTEL"></div>
+                    <div class="build-name">macOS Intel Build</div>
+                    <a href="URL_MACOS_INTEL" class="download-btn">Download</a>
+                  </div>
 
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          📋 BUILD RESULTS
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  <div class="build-item">
+                    <div class="build-status STATUS_MACOS_ARM"></div>
+                    <div class="build-name">macOS Apple Silicon Build</div>
+                    <a href="URL_MACOS_ARM" class="download-btn">Download</a>
+                  </div>
 
-          🍎 macOS Intel:        ${{ needs.build-macos-intel.result }}
-          🍏 macOS Apple Silicon: ${{ needs.build-macos-arm.result }}
-          🐧 Linux Ubuntu 22.04:  ${{ needs.build-linux-22.result }}
-          🐧 Linux Ubuntu 24.04:  ${{ needs.build-linux-24.result }}
-          🪟 Windows:            ${{ needs.build-windows.result }}
+                  <div class="build-item">
+                    <div class="build-status STATUS_LINUX_22"></div>
+                    <div class="build-name">Linux Ubuntu 22.04 Build</div>
+                    <a href="URL_LINUX_22" class="download-btn">Download</a>
+                  </div>
 
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          📥 DOWNLOAD LINKS
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  <div class="build-item">
+                    <div class="build-status STATUS_LINUX_24"></div>
+                    <div class="build-name">Linux Ubuntu 24.04 Build</div>
+                    <a href="URL_LINUX_24" class="download-btn">Download</a>
+                  </div>
 
-          🍎 macOS Intel:
-          ${{ needs.build-macos-intel.outputs.s3_url }}
+                  <div class="build-item">
+                    <div class="build-status STATUS_WINDOWS"></div>
+                    <div class="build-name">Windows Build</div>
+                    <a href="URL_WINDOWS" class="download-btn">Download</a>
+                  </div>
+                </div>
+              </div>
 
-          🍏 macOS Apple Silicon:
-          ${{ needs.build-macos-arm.outputs.s3_url }}
+              <div class="footer">
+                <p>Automated Build System | Wildace Technologies</p>
+              </div>
+            </div>
+          </body>
+          </html>
+          EOF
 
-          🐧 Linux Ubuntu 22.04:
-          ${{ needs.build-linux-22.outputs.s3_url }}
+          # Replace placeholders
+          sed -i "s|TIMESTAMP_PLACEHOLDER|${TIMESTAMP}|g" email.html
+          sed -i "s|STATUS_PLACEHOLDER|${STATUS}|g" email.html
+          
+          # Build status classes
+          sed -i "s|STATUS_MACOS_INTEL|$([[ "${{ needs.build-macos-intel.result }}" == "success" ]] && echo "status-success" || echo "status-failed")|g" email.html
+          sed -i "s|STATUS_MACOS_ARM|$([[ "${{ needs.build-macos-arm.result }}" == "success" ]] && echo "status-success" || echo "status-failed")|g" email.html
+          sed -i "s|STATUS_LINUX_22|$([[ "${{ needs.build-linux-22.result }}" == "success" ]] && echo "status-success" || echo "status-failed")|g" email.html
+          sed -i "s|STATUS_LINUX_24|$([[ "${{ needs.build-linux-24.result }}" == "success" ]] && echo "status-success" || echo "status-failed")|g" email.html
+          sed -i "s|STATUS_WINDOWS|$([[ "${{ needs.build-windows.result }}" == "success" ]] && echo "status-success" || echo "status-failed")|g" email.html
+          
+          # URLs
+          sed -i "s|URL_MACOS_INTEL|${{ needs.build-macos-intel.outputs.s3_url }}|g" email.html
+          sed -i "s|URL_MACOS_ARM|${{ needs.build-macos-arm.outputs.s3_url }}|g" email.html
+          sed -i "s|URL_LINUX_22|${{ needs.build-linux-22.outputs.s3_url }}|g" email.html
+          sed -i "s|URL_LINUX_24|${{ needs.build-linux-24.outputs.s3_url }}|g" email.html
+          sed -i "s|URL_WINDOWS|${{ needs.build-windows.outputs.s3_url }}|g" email.html
 
-          🐧 Linux Ubuntu 24.04:
-          ${{ needs.build-linux-24.outputs.s3_url }}
-
-          🪟 Windows:
-          ${{ needs.build-windows.outputs.s3_url }}
-
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          🔗 ADDITIONAL INFO
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-          GitHub Actions Run:
-          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-          Repository:
-          ${{ github.server_url }}/${{ github.repository }}
-
-          Commit: ${{ github.sha }}
-          Branch: ${{ github.ref_name }}
-
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-          Best Regards,
-          Wildace Automated Build System 🤖
-          EMAILEOF
-
-          sed -i "s|BUILD_VERSION_PLACEHOLDER|${BUILD_VERSION}|g" email.txt
-          sed -i "s|TIMESTAMP_PLACEHOLDER|${TIMESTAMP}|g" email.txt
-          sed -i "s|EMOJI_PLACEHOLDER|${EMOJI}|g" email.txt
-          sed -i "s|STATUS_PLACEHOLDER|${STATUS}|g" email.txt
-
-          MESSAGE=$(cat email.txt)
+          MESSAGE=$(cat email.html)
 
           TOPIC_ARN=$(aws sns create-topic --name wildace-build-notifications --region us-west-2 --query 'TopicArn' --output text)
           
@@ -554,8 +697,8 @@ jobs:
           
           aws sns publish \
             --topic-arn "${TOPIC_ARN}" \
-            --subject "${EMOJI} ${STATUS} - ${{ env.APP_NAME }} ${BUILD_VERSION}" \
+            --subject "Build ${STATUS} - ${{ env.APP_NAME }} v${{ env.APP_VERSION }}" \
             --message "${MESSAGE}" \
             --region us-west-2
 
-          echo "✅ Email sent successfully!"
+          echo "✅ Professional HTML email sent!"
