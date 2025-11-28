@@ -479,60 +479,70 @@ jobs:
           STATUS="${{ steps.status.outputs.status }}"
           EMOJI="${{ steps.status.outputs.emoji }}"
           
-          MESSAGE="╔════════════════════════════════════════════════════╗
-║         🚀 BUILD NOTIFICATION - ${{ env.APP_NAME }}         ║
-╚════════════════════════════════════════════════════╝
+          cat > email.txt << 'EMAILEOF'
+          ════════════════════════════════════════════════════
+                  🚀 BUILD NOTIFICATION
+                  ${{ env.APP_NAME }}
+          ════════════════════════════════════════════════════
 
-📦 BUILD VERSION: ${BUILD_VERSION}
-📅 TIMESTAMP: ${TIMESTAMP}
-📊 STATUS: ${EMOJI} ${STATUS}
+          📦 BUILD VERSION: BUILD_VERSION_PLACEHOLDER
+          📅 TIMESTAMP: TIMESTAMP_PLACEHOLDER
+          📊 STATUS: EMOJI_PLACEHOLDER STATUS_PLACEHOLDER
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 BUILD RESULTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          📋 BUILD RESULTS
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🍎 macOS Intel:        ${{ needs.build-macos-intel.result }}
-🍏 macOS Apple Silicon: ${{ needs.build-macos-arm.result }}
-🐧 Linux Ubuntu 22.04:  ${{ needs.build-linux-22.result }}
-🐧 Linux Ubuntu 24.04:  ${{ needs.build-linux-24.result }}
-🪟 Windows:            ${{ needs.build-windows.result }}
+          🍎 macOS Intel:        ${{ needs.build-macos-intel.result }}
+          🍏 macOS Apple Silicon: ${{ needs.build-macos-arm.result }}
+          🐧 Linux Ubuntu 22.04:  ${{ needs.build-linux-22.result }}
+          🐧 Linux Ubuntu 24.04:  ${{ needs.build-linux-24.result }}
+          🪟 Windows:            ${{ needs.build-windows.result }}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📥 DOWNLOAD LINKS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          📥 DOWNLOAD LINKS
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🍎 macOS Intel:
-${{ needs.build-macos-intel.outputs.s3_url }}
+          🍎 macOS Intel:
+          ${{ needs.build-macos-intel.outputs.s3_url }}
 
-🍏 macOS Apple Silicon:
-${{ needs.build-macos-arm.outputs.s3_url }}
+          🍏 macOS Apple Silicon:
+          ${{ needs.build-macos-arm.outputs.s3_url }}
 
-🐧 Linux Ubuntu 22.04:
-${{ needs.build-linux-22.outputs.s3_url }}
+          🐧 Linux Ubuntu 22.04:
+          ${{ needs.build-linux-22.outputs.s3_url }}
 
-🐧 Linux Ubuntu 24.04:
-${{ needs.build-linux-24.outputs.s3_url }}
+          🐧 Linux Ubuntu 24.04:
+          ${{ needs.build-linux-24.outputs.s3_url }}
 
-🪟 Windows:
-${{ needs.build-windows.outputs.s3_url }}
+          🪟 Windows:
+          ${{ needs.build-windows.outputs.s3_url }}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔗 ADDITIONAL INFO
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          🔗 ADDITIONAL INFO
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-GitHub Actions Run:
-${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GitHub Actions Run:
+          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-Repository:
-${{ github.server_url }}/${{ github.repository }}
+          Repository:
+          ${{ github.server_url }}/${{ github.repository }}
 
-Commit: ${{ github.sha }}
-Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          Branch: ${{ github.ref_name }}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Best Regards,
-Wildace Automated Build System 🤖"
+          Best Regards,
+          Wildace Automated Build System 🤖
+          EMAILEOF
+
+          sed -i "s|BUILD_VERSION_PLACEHOLDER|${BUILD_VERSION}|g" email.txt
+          sed -i "s|TIMESTAMP_PLACEHOLDER|${TIMESTAMP}|g" email.txt
+          sed -i "s|EMOJI_PLACEHOLDER|${EMOJI}|g" email.txt
+          sed -i "s|STATUS_PLACEHOLDER|${STATUS}|g" email.txt
+
+          MESSAGE=$(cat email.txt)
 
           TOPIC_ARN=$(aws sns create-topic --name wildace-build-notifications --region us-west-2 --query 'TopicArn' --output text)
           
