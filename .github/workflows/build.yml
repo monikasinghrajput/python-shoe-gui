@@ -416,8 +416,8 @@ jobs:
           echo "s3_url=${S3_URL}" >> $env:GITHUB_OUTPUT
 
   # ==================== SIMPLE PLAIN TEXT EMAIL ====================
-  notify:
-    name: 📧 Send Simple Email Notification
+    notify:
+    name: 📧 Send Build Notification Email
     needs: [build-macos-intel, build-macos-arm, build-linux-22, build-linux-24, build-windows]
     runs-on: ubuntu-latest
     if: always()
@@ -430,7 +430,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
 
-      - name: 📝 Check Build Status
+      - name: 📝 Determine Build Status
         id: status
         run: |
           if [ "${{ needs.build-macos-intel.result }}" == "success" ] && \
@@ -443,15 +443,16 @@ jobs:
             echo "status=FAILED" >> $GITHUB_OUTPUT
           fi
 
-      - name: 📧 Send Simple Email
+      - name: 📧 Send Build Notification
         run: |
           TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
           STATUS="${{ steps.status.outputs.status }}"
-          
-          cat > email.txt << EOF
-          Build Notification - ${{ env.APP_NAME }}
 
-          Version: v${{ env.APP_VERSION }}
+          # Create Email Content
+          cat > email.txt << EOF
+          Build Notification - BeetekShoeMonitor
+
+          Version: v1.0.0
           Timestamp: ${TIMESTAMP}
           Status: ${STATUS}
 
@@ -468,27 +469,22 @@ jobs:
           EOF
 
           MESSAGE=$(cat email.txt)
+          TOPIC_ARN="arn:aws:sns:us-west-2:535002867190:wildace-build-notifications"
 
-          TOPIC_ARN=$(aws sns create-topic --name wildace-build-notifications --region us-west-2 --query 'TopicArn' --output text)
-          
-          # Existing subscription
-          aws sns subscribe \
-            --topic-arn "${TOPIC_ARN}" \
-            --protocol email \
-            --notification-endpoint monika@wildace.in \
-            --region us-west-2 2>/dev/null || true
+          # Add both emails (will NOT resend subscription confirm if already subscribed)
+          for EMAIL in "monika@wildace.in" "monika.kumari@predicta.us"; do
+            aws sns subscribe \
+              --topic-arn "$TOPIC_ARN" \
+              --protocol email \
+              --notification-endpoint "$EMAIL" \
+              --region us-west-2 2>/dev/null || true
+          done
 
-          # ⭐ Added your new email
-          aws sns subscribe \
-            --topic-arn "${TOPIC_ARN}" \
-            --protocol email \
-            --notification-endpoint monika.kumari@predicta.us \
-            --region us-west-2 2>/dev/null || true
-          
+          # Publish the final message
           aws sns publish \
-            --topic-arn "${TOPIC_ARN}" \
-            --subject "Build ${STATUS} - ${{ env.APP_NAME }} v${{ env.APP_VERSION }}" \
-            --message "${MESSAGE}" \
+            --topic-arn "$TOPIC_ARN" \
+            --subject "Build ${STATUS} - BeetekShoeMonitor v1.0.0" \
+            --message "$MESSAGE" \
             --region us-west-2
 
-          echo "✅ Simple email sent!"
+          echo "✅ Notification sent to both emails"
